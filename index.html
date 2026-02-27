@@ -390,7 +390,7 @@ code{
 <div class="container">
 
   <!-- Month strip -->
-  <div class="month-strip" id="monthStrip"></div>
+  <div id="monthStrip" style="margin-bottom:14px"></div>
 
   <!-- KPIs -->
   <div class="kpi-row" id="homeKpis"></div>
@@ -445,7 +445,7 @@ code{
     <button class="btn btn-mint btn-sm" onclick="openModal('modal-ingreso')">＋ Otro ingreso</button>
   </div>
 
-  <div class="month-strip" id="ingMonthStrip"></div>
+  <div id="ingMonthStrip" style="margin-bottom:14px"></div>
 
   <div class="kpi-row" style="margin-bottom:14px">
     <div class="kpi-card mint">
@@ -499,7 +499,7 @@ code{
     <button class="btn btn-rose btn-sm" onclick="openModal('modal-gasto')">＋ Agregar</button>
   </div>
 
-  <div class="month-strip" id="gasMonthStrip"></div>
+  <div id="gasMonthStrip" style="margin-bottom:14px"></div>
 
   <div class="kpi-row" style="margin-bottom:14px">
     <div class="kpi-card rose">
@@ -529,12 +529,11 @@ code{
   </div>
 
   <!-- Cuota mgmt -->
-  <div class="section-card" id="cuotasSection">
+  <div class="section-card" id="cuotasSection" style="display:none">
     <div class="sc-head">
       <div><div class="sc-title">Cuotas Activas</div><div class="sc-sub">Compromisos fijos</div></div>
       <button class="btn btn-ghost btn-sm" onclick="openNewCuota()">＋ Cuota</button>
     </div>
-
     <div class="sc-body" id="cuotasList"></div>
   </div>
 </div>
@@ -1024,7 +1023,14 @@ function loadState() {
   ['meses','ingresos','gastos','inversiones','cuotas'].forEach(k => { if (!state[k]) state[k] = []; });
   if (!state.config) state.config = {sheetId:'',apiKey:''};
 
-  // Seed egresos históricos
+  // ── REGLA DE ORO DEL SEED ──────────────────────────────────────
+  // NUNCA borrar ni sobreescribir datos existentes en localStorage.
+  // Solo AGREGAR lo que todavía no existe (chequeo por id).
+  // Así los cambios manuales del usuario siempre se preservan.
+  // ────────────────────────────────────────────────────────────────
+  const needsSeed = (state.seedVersion || 0) < SEED_VERSION;
+
+  // Seed meses base (solo si no existe el mes)
   HIST.forEach(h => {
     if (!state.meses.find(m => m.year===h.year && m.month===h.month)) {
       state.meses.push({ id:`${h.year}-${h.month}`, year:h.year, month:h.month, status:'closed',
@@ -1032,8 +1038,7 @@ function loadState() {
     }
   });
 
-  // Seed ingresos — siempre aplica si la versión cambió
-  const needsSeed = (state.seedVersion || 0) < SEED_VERSION;
+  // Seed ingresos de Juan y extras (solo agrega, nunca pisa)
   HIST_INGRESOS.forEach(hi => {
     let m = state.meses.find(x => x.year===hi.year && x.month===hi.month);
     if (!m) {
@@ -1041,26 +1046,23 @@ function loadState() {
             fijos_hist:null, varios_hist:null, ingresos:null, saldo:null, fijos_override:null };
       state.meses.push(m);
     }
-    // Seed juan solo si está vacío o si es una re-siembra forzada
-    if (needsSeed || !m.juan || Object.keys(m.juan).length === 0) {
+    // Juan: solo si el mes no tiene datos de Juan todavía
+    if (!m.juan || Object.keys(m.juan).length === 0) {
       m.juan = { ...hi.juan, juan_ds_override: hi.juan.juan_ds || null };
-    // Seed Daiana horas/precio from HIST_HORAS_DAIS
+    }
+    // Daiana horas/precio: solo si no fue editado por el usuario
     const hd = HIST_HORAS_DAIS?.[m.id];
     if (hd && !m.dai_horas) {
       m.dai_horas = hd.horas || null;
       m.dai_precio_hora = hd.precio_hora || null;
       m.dai_sueldo_hist = hd.sueldo || null;
     }
-    // April 2026+: Daiana Soledad only, 140h × 4750
+    // Abril 2026+: default 140h × 4750 solo si no fue editado
     if ((m.year > 2026 || (m.year === 2026 && m.month >= 4)) && !m.dai_horas) {
       m.dai_horas = 140;
       m.dai_precio_hora = 4750;
     }
-    }
-    // Seed ingresos extra (AUH, musica, alimentos)
-    if (needsSeed) {
-      state.ingresos = state.ingresos.filter(i => !i.id?.startsWith(`hist-${hi.year}-${hi.month}-`));
-    }
+    // Ingresos extra (AUH, musica, alimentos): solo agrega si no existe
     ['auh','musica','alimentos'].forEach(key => {
       if (!hi[key]) return;
       const catMap     = {auh:'AUH', musica:'Otros', alimentos:'Otros'};
@@ -1074,10 +1076,7 @@ function loadState() {
     });
   });
 
-  // Seed gastos históricos
-  if (needsSeed) {
-    state.gastos = state.gastos.filter(g => !g.id?.startsWith('hist-g-') && !g.id?.startsWith('hist-t-'));
-  }
+  // Seed gastos históricos: NUNCA borra — solo agrega los que faltan
   HIST_GASTOS.forEach(hg => {
     const hid = `hist-g-${hg.mes_id}-${hg.concepto.replace(/\s+/g,'-').slice(0,20)}`;
     if (!state.gastos.find(g => g.id === hid)) {
@@ -1086,9 +1085,8 @@ function loadState() {
     }
   });
 
-  // Seed cuotas históricas
-  if (needsSeed && HIST_CUOTAS) {
-    state.cuotas = state.cuotas.filter(c => !c.id?.startsWith('hist-c-'));
+  // Seed cuotas: solo agrega las que no existen, nunca borra ni sobreescribe
+  if (HIST_CUOTAS) {
     HIST_CUOTAS.forEach(hc => {
       if (!state.cuotas.find(c => c.id === hc.id)) {
         state.cuotas.push({...hc});
@@ -1097,20 +1095,11 @@ function loadState() {
   }
 
   state.seedVersion = SEED_VERSION;
-  // Seed horas Dais en cada mes
-  if (needsSeed && HIST_HORAS_DAIS) {
-    state.meses.forEach(m => {
-      const hd = HIST_HORAS_DAIS[m.id];
-      if (hd) {
-        if (!m.dai_horas) m.dai_horas = hd.horas || null;
-        if (!m.dai_precio_hora) m.dai_precio_hora = hd.precio_hora || null;
-        if (!m.dai_sueldo_hist) m.dai_sueldo_hist = hd.sueldo || null;
-      }
-    });
-  }
 
   state.meses.sort((a,b) => a.year!==b.year ? a.year-b.year : a.month-b.month);
   saveState();
+  // Siempre arrancar en el primer mes open (más viejo sin cerrar)
+  activeMesId = (state.meses.find(m => m.status === 'open') || state.meses[state.meses.length-1])?.id || null;
 }
 
 function saveState() { localStorage.setItem('misFinanzas_v3', JSON.stringify(state)); }
@@ -1187,8 +1176,8 @@ let editingIds = { ingreso:null, gasto:null, inversion:null, cuota:null };
 
 function getActiveMes() {
   if (activeMesId) return getMesById(activeMesId);
-  // Default to most recent open month, or just the latest
-  const openMes = [...state.meses].reverse().find(m => m.status === 'open');
+  // Default = first (earliest) open month. Si Feb está cerrado → Mar es el activo.
+  const openMes = state.meses.find(m => m.status === 'open');
   return openMes || state.meses[state.meses.length-1];
 }
 
@@ -1223,39 +1212,62 @@ const renders = {
 function buildMonthStrip(containerId, onChangeFnName) {
   const el = document.getElementById(containerId);
   if (!el) return;
-  // Show last 6 months with data, most recent first
-  // Always include latest month (open) + last 5 with data
-  const latestMes = [...state.meses].reverse().find(m => m.status === 'open') || state.meses[state.meses.length-1];
-  const withData = state.meses.filter(m => getMesEgresos(m) > 0 || m.status === 'open');
-  // Ensure latest is included
-  if (latestMes && !withData.find(m => m.id === latestMes.id)) withData.push(latestMes);
-  const allValid = [...new Map(withData.map(m=>[m.id,m])).values()]
-    .sort((a,b) => a.year!==b.year ? a.year-b.year : a.month-b.month);
-  const last6 = allValid.slice(-6).reverse(); // descending: más reciente primero
-  // If activeMesId not in last6, reset to most recent
-  if (!last6.find(m => m.id === activeMesId)) {
-    activeMesId = last6[0]?.id;
+  // Default = primer mes open (más viejo sin cerrar)
+  if (!activeMesId) {
+    activeMesId = (state.meses.find(m => m.status === 'open') || state.meses[state.meses.length-1])?.id;
   }
-  el.innerHTML = last6.map(m => {
-    const active = m.id === activeMesId;
-    return `<div class="month-chip ${active?'active':''} ${m.status==='closed'?'closed':''}"
-      onclick="setActiveMes('${m.id}','${onChangeFnName}')">${MONTHS[m.month-1].slice(0,3)} ${String(m.year).slice(2)}</div>`;
-  }).join('');
+  const m = getMesById(activeMesId) || state.meses.find(m => m.status === 'open') || state.meses[state.meses.length-1];
+  if (!m) return;
+  activeMesId = m.id;
+  const badge = m.status === 'open'
+    ? '<span style="font-size:10px;background:rgba(234,179,100,.3);color:#8a6200;border-radius:6px;padding:2px 7px;font-weight:700;margin-left:6px">Abierto</span>'
+    : '<span style="font-size:10px;background:rgba(150,200,170,.3);color:#2a6642;border-radius:6px;padding:2px 7px;font-weight:700;margin-left:6px">Cerrado</span>';
+  el.innerHTML = `<button onclick="openMesSelector('${onChangeFnName}')"
+    style="display:flex;align-items:center;gap:4px;background:var(--lavender);border:none;border-radius:20px;
+           padding:8px 16px;cursor:pointer;font-family:'Nunito',sans-serif;font-weight:800;font-size:15px;
+           color:#3A1868;transition:opacity .15s">
+    ${getMesLabel(m)} ${badge}
+    <span style="font-size:12px;margin-left:4px;opacity:.6">▾</span>
+  </button>`;
 }
 
 function setActiveMes(id, renderFnName) {
   activeMesId = id;
-  document.querySelectorAll('.month-chip').forEach(c => {
-    c.classList.toggle('active', c.getAttribute('onclick')?.includes(`'${id}'`));
-  });
+  closeModal('modal-mes-selector');
   window[renderFnName]?.();
+}
+
+function openMesSelector(renderFnName) {
+  const meses = [...state.meses]
+    .filter(m => getMesEgresos(m) > 0 || m.status === 'open')
+    .sort((a,b) => a.year!==b.year ? b.year-a.year : b.month-a.month);
+  document.getElementById('mes-selector-list').innerHTML = meses.map(m => {
+    const isActive = m.id === activeMesId;
+    const dot = m.status==='open' ? 'var(--peach)' : 'var(--mint)';
+    return `<div onclick="setActiveMes('${m.id}','${renderFnName}')"
+      style="display:flex;align-items:center;justify-content:space-between;padding:13px 16px;
+             cursor:pointer;border-bottom:1px solid rgba(200,175,200,.12);transition:background .12s;
+             background:${isActive?'rgba(201,184,220,.2)':'transparent'}"
+      onmouseenter="this.style.background='rgba(201,184,220,.12)'"
+      onmouseleave="this.style.background='${isActive?'rgba(201,184,220,.2)':'transparent'}'">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:8px;height:8px;border-radius:50%;background:${dot};flex-shrink:0"></div>
+        <span style="font-weight:${isActive?'800':'600'};font-size:15px">${getMesLabel(m)}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:13px;color:var(--mid)">${fmt(getMesEgresos(m),true)}</span>
+        ${isActive?'<span style="color:var(--lavender);font-size:16px">✓</span>':''}
+      </div>
+    </div>`;
+  }).join('');
+  openModal('modal-mes-selector');
 }
 
 // ══════════════════════════════════════════════════════════
 // INICIO PAGE
 // ══════════════════════════════════════════════════════════
 function renderInicio() {
-  if (!activeMesId) { const _om = [...state.meses].reverse().find(m=>m.status==='open'); activeMesId=(_om||state.meses[state.meses.length-1])?.id; }
+  if (!activeMesId) { const _om = state.meses.find(m=>m.status==='open'); activeMesId=(_om||state.meses[state.meses.length-1])?.id; }
   buildMonthStrip('monthStrip', 'renderInicio');
 
   const m = getActiveMes();
@@ -1750,7 +1762,7 @@ function renderJuanCalc(m) {
 // INGRESOS PAGE
 // ══════════════════════════════════════════════════════════
 function renderIngresos() {
-  if (!activeMesId) { const _om = [...state.meses].reverse().find(m=>m.status==='open'); activeMesId=(_om||state.meses[state.meses.length-1])?.id; }
+  if (!activeMesId) { const _om = state.meses.find(m=>m.status==='open'); activeMesId=(_om||state.meses[state.meses.length-1])?.id; }
   buildMonthStrip('ingMonthStrip', 'renderIngresos');
   const m = getActiveMes();
   if (!m) return;
@@ -1849,7 +1861,7 @@ function getMesIngresos(m) {
 // GASTOS PAGE
 // ══════════════════════════════════════════════════════════
 function renderGastos() {
-  if (!activeMesId) { const _om = [...state.meses].reverse().find(m=>m.status==='open'); activeMesId=(_om||state.meses[state.meses.length-1])?.id; }
+  if (!activeMesId) { const _om = state.meses.find(m=>m.status==='open'); activeMesId=(_om||state.meses[state.meses.length-1])?.id; }
   buildMonthStrip('gasMonthStrip', 'renderGastos');
   const m = getActiveMes();
   const egr = getMesEgresos(m||{});
@@ -2075,21 +2087,30 @@ function renderDaianaCard(m) {
 function renderCuotasList(m) {
   const my = m?.year||2026, mm = m?.month||4;
   const cuotas = state.cuotas.filter(c=>c.activa&&isCuotaActive(c,my,mm));
-  const finalizando = state.cuotas.filter(c=>c.activa&&!isCuotaActive(c,my,mm)&&isCuotaActive(c,my-1,mm));
   const list = document.getElementById('cuotasList');
   if (!cuotas.length) { list.innerHTML = `<div style="text-align:center;padding:16px;color:var(--light);font-size:13px">Sin cuotas activas este mes</div>`; return; }
+
+  // ¿Tiene gastos reales cargados este mes? Si sí, los montos ya están en la lista de gastos
+  // → mostrar cuotas solo como tracker de progreso, sin repetir el monto como egreso
+  const hasGastos = state.gastos.some(g=>g.mes_id===m?.id);
+
   list.innerHTML = cuotas.map(c=>{
     const elapsed=m?((m.year-(c.inicio_year||m.year))*12+(m.month-(c.inicio_month||m.month))):0;
     const cur=(c.cuota_actual||1)+elapsed;
+    const rem = c.cuota_total ? c.cuota_total - cur : null;
     const pct=c.cuota_total?Math.min((cur/c.cuota_total)*100,100):100;
+    const remLabel = rem!=null ? (rem===0 ? '¡Última cuota!' : `Restan ${rem}`) : 'Sin límite';
     return `<div class="list-item" onclick="editCuota('${c.id}')">
       <div class="item-icon" style="background:rgba(201,184,220,.5)">${CAT_ICONS[c.tipo]||'📌'}</div>
       <div class="item-info">
         <div class="item-name">${c.nombre}</div>
-        <div class="item-detail">${c.cuota_total?`Cuota ${cur}/${c.cuota_total}`:'Fijo mensual'}</div>
-        ${c.cuota_total?`<div class="progress" style="width:100px;margin-top:4px"><div class="progress-fill" style="width:${pct}%;background:var(--lavender)"></div></div>`:''}
+        <div class="item-detail">${c.cuota_total?`Cuota ${cur}/${c.cuota_total} · ${remLabel}`:'Fijo mensual'}</div>
+        ${c.cuota_total?`<div class="progress" style="width:120px;margin-top:4px"><div class="progress-fill" style="width:${pct}%;background:var(--lavender)"></div></div>`:''}
       </div>
-      <div class="item-amount neg">-${fmt(c.monto,true)}</div>
+      ${hasGastos
+        ? `<div style="font-size:11px;color:var(--light);text-align:right;min-width:54px">${fmt(c.monto,true)}<br><span style="font-size:10px;opacity:.6">incluido ↑</span></div>`
+        : `<div class="item-amount neg">-${fmt(c.monto,true)}</div>`
+      }
     </div>`;
   }).join('');
 }
@@ -2720,5 +2741,16 @@ activeMesId = (_openMes || state.meses[state.meses.length-1])?.id;
 setSyncStatus('','Local');
 renderInicio();
 </script>
+
+<!-- MES SELECTOR MODAL -->
+<div class="modal-overlay" id="modal-mes-selector" onclick="if(event.target===this)closeModal('modal-mes-selector')">
+  <div class="modal-card" style="max-height:75vh;display:flex;flex-direction:column">
+    <div class="modal-header">
+      <div class="modal-title">Seleccionar período</div>
+      <button class="modal-close" onclick="closeModal('modal-mes-selector')">×</button>
+    </div>
+    <div id="mes-selector-list" style="overflow-y:auto;flex:1"></div>
+  </div>
+</div>
 </body>
 </html>
