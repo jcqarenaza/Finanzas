@@ -593,62 +593,71 @@ code{
 <div class="page" id="page-settings">
 <div class="container">
   <div style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:700;margin-bottom:6px;">Configuración</div>
-  <div style="font-size:12px;color:var(--light);margin-bottom:20px;">Google Sheets · Datos · Cuenta</div>
+  <div style="font-size:12px;color:var(--light);margin-bottom:20px;">Google Sheets · Datos · Sincronización</div>
 
-  <div class="section-card">
-    <div class="sc-head"><div class="sc-title">Google Sheets</div></div>
-    <div class="sc-body">
-      <div class="form-group">
-        <label class="form-label">ID del Spreadsheet</label>
-        <input class="form-input" type="text" id="cfg-sheetId" placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms">
-        <div style="font-size:11px;color:var(--light);margin-top:4px">Encontralo en la URL: docs.google.com/spreadsheets/d/<strong>[ID]</strong>/edit</div>
+  <!-- Estado de sync -->
+  <div class="section-card" style="margin-bottom:14px">
+    <div class="sc-body" style="padding:14px 16px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div id="gs-status-dot" style="width:10px;height:10px;border-radius:50%;background:var(--xlight);flex-shrink:0"></div>
+          <div>
+            <div style="font-weight:700;font-size:14px" id="gs-status-label">Sin configurar</div>
+            <div style="font-size:11px;color:var(--light)" id="gs-status-sub">Configurá el Apps Script para sincronizar</div>
+          </div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="gsPull()" id="gs-sync-btn" style="display:none">↓ Obtener</button>
       </div>
-      <div class="form-group">
-        <label class="form-label">API Key de Google</label>
-        <input class="form-input" type="password" id="cfg-apiKey" placeholder="AIza...">
-        <div style="font-size:11px;color:var(--light);margin-top:4px">Creá una API Key en <a href="https://console.cloud.google.com" target="_blank" style="color:var(--lavender)">Google Cloud Console</a></div>
-      </div>
-      <div style="display:flex;gap:8px;margin-top:12px;">
-        <button class="btn btn-primary btn-sm" onclick="saveSheetConfig()">Guardar Configuración</button>
-        <button class="btn btn-ghost btn-sm" onclick="testSheetConnection()">Probar Conexión</button>
-      </div>
-      <div id="sheet-status" style="margin-top:10px;font-size:12px;color:var(--mid)"></div>
     </div>
   </div>
 
   <div class="section-card">
-    <div class="sc-head"><div class="sc-title">Instrucciones de Configuración</div></div>
+    <div class="sc-head"><div class="sc-title">📊 Google Sheets</div></div>
     <div class="sc-body">
-      <div style="font-size:13px;color:var(--mid);line-height:1.7;">
-        <div style="margin-bottom:10px"><strong>1. Crear el Google Sheet</strong><br>
-        Creá una hoja de cálculo nueva en Google Sheets. Copiá el ID de la URL.</div>
-        <div style="margin-bottom:10px"><strong>2. Hacer pública la hoja</strong><br>
-        Archivo → Compartir → "Cualquiera con el vínculo" → Lector (o Editor si querés escritura).</div>
-        <div style="margin-bottom:10px"><strong>3. Obtener API Key</strong><br>
-        En <a href="https://console.cloud.google.com" target="_blank" style="color:var(--lavender)">Google Cloud Console</a>, habilitá la "Google Sheets API" y creá una API Key.</div>
-        <div style="margin-bottom:10px"><strong>4. Estructura de hojas</strong><br>
-        La app va a crear automáticamente las hojas: <code>Meses</code>, <code>Ingresos</code>, <code>Gastos</code>, <code>Inversiones</code>, <code>Cuotas</code></div>
-        <div><strong>⚠ Nota importante</strong><br>Con solo API Key podés LEER datos. Para ESCRIBIR necesitás OAuth2 o usar un Google Apps Script de intermediario (te puedo generar el script).</div>
+      <div class="form-group">
+        <label class="form-label">URL del Web App (Apps Script)</label>
+        <input class="form-input" type="text" id="cfg-gs-url" placeholder="https://script.google.com/macros/s/XXXX/exec">
+        <div style="font-size:11px;color:var(--light);margin-top:4px">La obtenés al publicar el Apps Script</div>
       </div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn btn-primary btn-sm" onclick="saveGsConfig()">Guardar y conectar</button>
+        <button class="btn btn-ghost btn-sm" onclick="gsTest()">Probar</button>
+      </div>
+      <div id="gs-test-status" style="margin-top:10px;font-size:12px;color:var(--mid)"></div>
+    </div>
+  </div>
+
+  <div class="section-card">
+    <div class="sc-head"><div class="sc-title">📋 Instrucciones</div></div>
+    <div class="sc-body">
+      <div style="font-size:13px;color:var(--mid);line-height:1.8">
+        <div style="margin-bottom:10px"><strong>1. Crear el Google Sheet</strong><br>
+        Entrá a <a href="https://sheets.google.com" target="_blank" style="color:var(--lavender)">sheets.google.com</a> y creá una hoja nueva.</div>
+        <div style="margin-bottom:10px"><strong>2. Abrir Apps Script</strong><br>
+        En el Sheet: <strong>Extensiones → Apps Script</strong>. Borrá todo y pegá el código.</div>
+        <div style="margin-bottom:10px"><strong>3. Publicar como Web App</strong><br>
+        <strong>Implementar → Nueva implementación</strong><br>
+        Tipo: <em>Aplicación web</em> · Ejecutar como: <em>Yo</em><br>
+        Acceso: <em>Cualquier usuario</em> → Implementar → autorizá → copiá la URL.</div>
+        <div style="margin-bottom:14px"><strong>4. Pegar la URL arriba y guardar.</strong></div>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="copyAppsScript()">📋 Copiar código del Apps Script</button>
+      <div id="copy-script-status" style="font-size:11px;color:var(--green);text-align:center;margin-top:6px;display:none">✓ Copiado al portapapeles</div>
     </div>
   </div>
 
   <div class="section-card">
     <div class="sc-head"><div class="sc-title">Datos Locales</div></div>
     <div class="sc-body">
-      <div style="display:flex;flex-direction:column;gap:8px;">
+      <div style="display:flex;flex-direction:column;gap:8px">
         <button class="btn btn-ghost btn-full" onclick="exportJSON()">⬇ Exportar JSON</button>
         <button class="btn btn-ghost btn-full" onclick="document.getElementById('importFile').click()">⬆ Importar JSON</button>
         <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)">
         <button class="btn btn-danger btn-full" onclick="resetData()">🗑 Borrar todos los datos</button>
       </div>
-      <div style="font-size:11px;color:var(--light);margin-top:10px;text-align:center;">
-        Versión 2.0 · Mis Finanzas · Datos guardados localmente
-      </div>
+      <div style="font-size:11px;color:var(--light);margin-top:10px;text-align:center">Versión 2.0 · Mis Finanzas</div>
     </div>
   </div>
-</div>
-</div>
 
 <!-- BOTTOM NAV -->
 <nav class="bottom-nav">
@@ -1102,7 +1111,11 @@ function loadState() {
   activeMesId = (state.meses.find(m => m.status === 'open') || state.meses[state.meses.length-1])?.id || null;
 }
 
-function saveState() { localStorage.setItem('misFinanzas_v3', JSON.stringify(state)); }
+function saveState() {
+  localStorage.setItem('misFinanzas_v3', JSON.stringify(state));
+  // Auto-sync to Google Sheets if configured (debounced)
+  if (state.config?.gsUrl) gsPush();
+}
 function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2); }
 
 // ─ Computed values ─
@@ -2568,63 +2581,278 @@ function deleteCuota() {
 // ══════════════════════════════════════════════════════════
 // GOOGLE SHEETS SYNC
 // ══════════════════════════════════════════════════════════
-function setSyncStatus(status, label) {
-  const dot=document.getElementById('syncDot');
-  const lbl=document.getElementById('syncLabel');
-  dot.className='sync-dot '+status;
-  lbl.textContent=label;
-}
+// ══════════════════════════════════════════════════════════
+// GOOGLE SHEETS SYNC (via Apps Script Web App)
+// ══════════════════════════════════════════════════════════
 
-async function syncNow() {
-  if(!state.config.sheetId||!state.config.apiKey){
-    toast('⚙ Configurá Google Sheets primero');
-    goPage('settings');
-    return;
-  }
-  setSyncStatus('syncing','Sincronizando...');
+const APPS_SCRIPT_CODE = `// =============================================
+// APPS SCRIPT — Mis Finanzas Sync
+// =============================================
+// INSTRUCCIONES:
+// 1. Pegá este código en Extensions → Apps Script
+// 2. Guardá con Ctrl+S
+// 3. Implementar → Nueva implementación
+//    - Tipo: Aplicación web
+//    - Ejecutar como: Yo
+//    - Acceso: Cualquier usuario
+// 4. Copiá la URL y pegala en la app → Configuración
+// =============================================
+
+const SHEET_NAME = 'finanzas_data';
+
+// ── GET: pull data o push via query param ──
+function doGet(e) {
+  const callback = e.parameter.callback;
+  const action   = e.parameter.action;
+
   try {
-    const url=`https://sheets.googleapis.com/v4/spreadsheets/${state.config.sheetId}/values/Meses?key=${state.config.apiKey}`;
-    const res=await fetch(url);
-    if(!res.ok) throw new Error('Error '+res.status);
-    const data=await res.json();
-    setSyncStatus('ok','Sincronizado');
-    toast('✓ Datos sincronizados con Google Sheets');
-    // Here you would parse the Sheet data and merge with state
-  } catch(e) {
-    setSyncStatus('err','Error');
-    toast('⚠ Error al conectar con Sheets. Verificá la configuración.');
+    const sheet = getOrCreateSheet();
+
+    // Push via GET (JSONP-compatible)
+    if (action === 'push' && e.parameter.data) {
+      const decoded = decodeURIComponent(e.parameter.data);
+      sheet.getRange('A1').setValue(decoded);
+      sheet.getRange('B1').setValue(new Date().toISOString());
+      return respond({ ok: true, ts: new Date().toISOString() }, callback);
+    }
+
+    // Ping / test
+    if (action === 'ping') {
+      return respond({ ok: true, msg: 'Mis Finanzas connected' }, callback);
+    }
+
+    // Pull — devuelve los datos guardados
+    const raw = sheet.getRange('A1').getValue();
+    const ts  = sheet.getRange('B1').getValue();
+    if (!raw || raw.length < 10) {
+      return respond({ ok: true, empty: true }, callback);
+    }
+    const data = JSON.parse(raw);
+    data._syncTs = ts;
+    return respond(data, callback);
+
+  } catch (err) {
+    return respond({ error: err.message }, callback);
   }
 }
 
-function saveSheetConfig() {
-  state.config.sheetId=document.getElementById('cfg-sheetId').value.trim();
-  state.config.apiKey=document.getElementById('cfg-apiKey').value.trim();
+// ── POST: push data (para cuando no hay restricción CORS) ──
+function doPost(e) {
+  try {
+    const sheet   = getOrCreateSheet();
+    const payload = JSON.parse(e.postData.contents);
+    if (payload.action === 'push' && payload.data) {
+      sheet.getRange('A1').setValue(JSON.stringify(payload.data));
+      sheet.getRange('B1').setValue(new Date().toISOString());
+      return respond({ ok: true, ts: new Date().toISOString() });
+    }
+    return respond({ error: 'Acción desconocida' });
+  } catch (err) {
+    return respond({ error: err.message });
+  }
+}
+
+// ── Helper: responde JSON o JSONP ──
+function respond(obj, callback) {
+  const json = JSON.stringify(obj);
+  if (callback) {
+    return ContentService
+      .createTextOutput(callback + '(' + json + ')')
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+  return ContentService
+    .createTextOutput(json)
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ── Helper: obtiene o crea la hoja de datos ──
+function getOrCreateSheet() {
+  const ss    = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet   = ss.getSheetByName(SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_NAME);
+    sheet.getRange('A1').setValue('');
+    sheet.getRange('B1').setValue('');
+    sheet.getRange('A2:B2').setValues([['data_json', 'updated_at']]);
+  }
+  return sheet;
+}
+`;
+
+function gsUrl() { return (state.config?.gsUrl || '').trim(); }
+
+function setSyncStatus(status, label, sub) {
+  // Top nav dot
+  const dot = document.getElementById('syncDot');
+  const lbl = document.getElementById('syncLabel');
+  if (dot) dot.className = 'sync-dot ' + status;
+  if (lbl) lbl.textContent = label;
+  // Settings card
+  const sDot = document.getElementById('gs-status-dot');
+  const sLbl = document.getElementById('gs-status-label');
+  const sSub = document.getElementById('gs-status-sub');
+  const sBtn = document.getElementById('gs-sync-btn');
+  if (!sDot) return;
+  const colors = { ok:'var(--green)', err:'var(--red)', syncing:'var(--peach)', '':'var(--xlight)' };
+  sDot.style.background = colors[status] || 'var(--xlight)';
+  if (sLbl) sLbl.textContent = label;
+  if (sSub && sub) sSub.textContent = sub;
+  if (sBtn) sBtn.style.display = status === 'ok' ? 'inline-flex' : 'none';
+}
+
+function jsonpRequest(url, params = {}, timeoutMs = 15000) {
+  return new Promise((resolve, reject) => {
+    const cbName = '_gs_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    let done = false;
+
+    const cleanup = () => {
+      done = true;
+      delete window[cbName];
+      const el = document.getElementById(cbName);
+      if (el) el.remove();
+    };
+
+    const timer = setTimeout(() => {
+      if (!done) { cleanup(); reject(new Error('Timeout — verificá la URL del Apps Script')); }
+    }, timeoutMs);
+
+    window[cbName] = (data) => {
+      clearTimeout(timer);
+      cleanup();
+      resolve(data);
+    };
+
+    const qs = Object.entries({ ...params, callback: cbName })
+      .map(([k, v]) => encodeURIComponent(k) + '=' + encodeURIComponent(v))
+      .join('&');
+
+    const script = document.createElement('script');
+    script.id  = cbName;
+    script.src = url + '?' + qs;
+    script.onerror = () => {
+      clearTimeout(timer);
+      cleanup();
+      reject(new Error('No se pudo conectar. Verificá la URL y que el script esté publicado.'));
+    };
+    document.head.appendChild(script);
+  });
+}
+
+async function gsPush() {
+  const url = gsUrl();
+  if (!url) return;
+  clearTimeout(window._gsPushTimer);
+  window._gsPushTimer = setTimeout(async () => {
+    setSyncStatus('syncing', 'Guardando...', 'Subiendo a Google Sheets');
+    try {
+      const result = await jsonpRequest(url, {
+        action: 'push',
+        data: JSON.stringify(state)
+      });
+      if (result && result.ok) {
+        const now = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+        setSyncStatus('ok', 'Sincronizado', 'Último guardado: ' + now);
+      } else {
+        throw new Error(result?.error || 'Sin respuesta del servidor');
+      }
+    } catch (e) {
+      setSyncStatus('err', 'Error al guardar', e.message);
+      console.warn('gsPush:', e.message);
+    }
+  }, 300);
+}
+
+async function gsPull() {
+  const url = gsUrl();
+  if (!url) { toast('⚙ Configurá el Apps Script primero'); goPage('settings'); return; }
+  setSyncStatus('syncing', 'Sincronizando...', 'Obteniendo datos de Google Sheets');
+  try {
+    const result = await jsonpRequest(url);
+    if (!result || result.error) throw new Error(result?.error || 'Sin datos');
+    if (result.empty || !result.meses) {
+      // Primera vez — subir datos locales
+      await gsPush();
+      toast('✓ Datos subidos a Google Sheets por primera vez');
+      return;
+    }
+    // Merge: el remoto gana, pero preservamos config local
+    const localConfig = { ...state.config };
+    state = result;
+    state.config = { ...(result.config || {}), ...localConfig };
+    delete state._syncTs;
+    saveState();
+    loadState();
+    renderInicio();
+    const now = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+    setSyncStatus('ok', 'Sincronizado', 'Actualizado: ' + now);
+    toast('✓ Datos sincronizados');
+    goPage('inicio');
+  } catch (e) {
+    setSyncStatus('err', 'Error de conexión', e.message);
+    toast('⚠ ' + e.message);
+  }
+}
+async function syncNow() { await gsPull(); }
+
+function saveGsConfig() {
+  const url = document.getElementById('cfg-gs-url')?.value.trim();
+  if (!url) { toast('⚠ Pegá la URL del Web App'); return; }
+  state.config.gsUrl = url;
   saveState();
   toast('Configuración guardada ✓');
+  gsTest();
 }
 
-async function testSheetConnection() {
-  const id=document.getElementById('cfg-sheetId').value.trim();
-  const key=document.getElementById('cfg-apiKey').value.trim();
-  const statusEl=document.getElementById('sheet-status');
-  if(!id||!key){statusEl.textContent='⚠ Completá ID y API Key primero.';return;}
-  statusEl.textContent='Probando conexión...';
+async function gsTest() {
+  const urlEl = document.getElementById('cfg-gs-url');
+  const url = (urlEl?.value.trim() || gsUrl());
+  const statusEl = document.getElementById('gs-test-status');
+  if (!url) { if (statusEl) statusEl.textContent = '⚠ Pegá la URL del Web App primero'; return; }
+  if (statusEl) statusEl.innerHTML = '<span style="color:var(--mid)">Probando conexión...</span>';
   try {
-    const res=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${id}?key=${key}`);
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    const data=await res.json();
-    statusEl.innerHTML=`<span style="color:var(--green)">✓ Conectado: "${data.properties?.title}"</span>`;
-    setSyncStatus('ok','Conectado');
-  } catch(e) {
-    statusEl.innerHTML=`<span style="color:var(--red)">✗ Error: ${e.message}. Verificá ID, API Key y que la hoja sea pública.</span>`;
-    setSyncStatus('err','Error');
+    const result = await jsonpRequest(url, { action: 'ping' }, 10000);
+    if (result && result.ok) {
+      if (statusEl) statusEl.innerHTML = '<span style="color:var(--green)">✓ ¡Conectado! Apps Script funcionando correctamente.</span>';
+      setSyncStatus('ok', 'Conectado', 'Google Sheets listo');
+      state.config.gsUrl = url;
+      saveState();
+      // Push current data
+      await gsPush();
+      toast('✓ Conectado — datos subidos');
+    } else {
+      throw new Error(result?.error || 'Respuesta inesperada');
+    }
+  } catch (e) {
+    if (statusEl) statusEl.innerHTML = `<span style="color:var(--red)">✗ ${e.message}<br><small>Asegurate de publicar como Web App con acceso "Cualquier usuario" y autorizarlo.</small></span>`;
+    setSyncStatus('err', 'Error de conexión', e.message);
   }
+}
+
+function copyAppsScript() {
+  navigator.clipboard.writeText(APPS_SCRIPT_CODE).then(() => {
+    const el = document.getElementById('copy-script-status');
+    if (el) { el.style.display = 'block'; setTimeout(() => el.style.display = 'none', 3000); }
+    toast('✓ Código copiado al portapapeles');
+  }).catch(() => {
+    // Fallback
+    const ta = document.createElement('textarea');
+    ta.value = APPS_SCRIPT_CODE;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    toast('✓ Código copiado');
+  });
 }
 
 function renderSettings() {
-  document.getElementById('cfg-sheetId').value=state.config.sheetId||'';
-  document.getElementById('cfg-apiKey').value=state.config.apiKey||'';
-  if(state.config.sheetId) setSyncStatus('ok','Configurado');
+  const urlEl = document.getElementById('cfg-gs-url');
+  if (urlEl) urlEl.value = state.config.gsUrl || '';
+  if (state.config.gsUrl) {
+    setSyncStatus('ok', 'Configurado', 'Google Sheets conectado');
+  } else {
+    setSyncStatus('', 'Sin configurar', 'Configurá el Apps Script para sincronizar');
+  }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -2739,6 +2967,10 @@ loadState();
 const _openMes = [...state.meses].reverse().find(m => m.status === 'open');
 activeMesId = (_openMes || state.meses[state.meses.length-1])?.id;
 setSyncStatus('','Local');
+// Auto-pull from Google Sheets on load if configured
+if (state.config?.gsUrl) {
+  setTimeout(gsPull, 1000);
+}
 renderInicio();
 </script>
 
