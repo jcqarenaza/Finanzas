@@ -1111,10 +1111,25 @@ function loadState() {
   activeMesId = (state.meses.find(m => m.status === 'open') || state.meses[state.meses.length-1])?.id || null;
 }
 
+let _lastPushedHash = '';
+function stateHash() {
+  // Quick hash to avoid pushing when nothing changed
+  const s = state.meses.length + '_' + state.gastos.length + '_' + state.ingresos.length;
+  return s;
+}
 function saveState() {
   localStorage.setItem('misFinanzas_v3', JSON.stringify(state));
-  // Auto-sync to Google Sheets if configured (debounced)
-  if (state.config?.gsUrl) gsPush();
+  // Auto-sync: debounced 5s, only if data actually changed
+  if (state.config?.gsUrl) {
+    clearTimeout(window._gsPushTimer);
+    window._gsPushTimer = setTimeout(() => {
+      const h = stateHash();
+      if (h !== _lastPushedHash) {
+        _lastPushedHash = h;
+        gsPush();
+      }
+    }, 5000);
+  }
 }
 function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2); }
 
