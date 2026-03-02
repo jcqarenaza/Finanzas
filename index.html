@@ -2745,37 +2745,40 @@ async function gsPush() {
   window._gsPushTimer = setTimeout(async () => {
     setSyncStatus('syncing', 'Guardando...', 'Subiendo a Google Sheets');
     try {
-      const result = await jsonpRequest(url, {
-        action: 'push',
-        data: JSON.stringify(state)
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ action: 'push', data: state })
       });
+      const result = await res.json();
       if (result && result.ok) {
         const now = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
         setSyncStatus('ok', 'Sincronizado', 'Último guardado: ' + now);
       } else {
-        throw new Error(result?.error || 'Sin respuesta del servidor');
+        throw new Error(result?.error || 'Sin respuesta');
       }
     } catch (e) {
       setSyncStatus('err', 'Error al guardar', e.message);
-      console.warn('gsPush:', e.message);
+      console.warn('gsPush error:', e.message);
     }
   }, 300);
 }
+
 
 async function gsPull() {
   const url = gsUrl();
   if (!url) { toast('⚙ Configurá el Apps Script primero'); goPage('settings'); return; }
   setSyncStatus('syncing', 'Sincronizando...', 'Obteniendo datos de Google Sheets');
   try {
-    const result = await jsonpRequest(url);
+    const res = await fetch(url + '?action=pull&t=' + Date.now());
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const result = await res.json();
     if (!result || result.error) throw new Error(result?.error || 'Sin datos');
     if (result.empty || !result.meses) {
-      // Primera vez — subir datos locales
       await gsPush();
-      toast('✓ Datos subidos a Google Sheets por primera vez');
+      toast('✓ Datos subidos por primera vez');
       return;
     }
-    // Merge: el remoto gana, pero preservamos config local
     const localConfig = { ...state.config };
     state = result;
     state.config = { ...(result.config || {}), ...localConfig };
@@ -2804,27 +2807,29 @@ function saveGsConfig() {
 }
 
 async function gsTest() {
-  const urlEl = document.getElementById('cfg-gs-url');
-  const url = (urlEl?.value.trim() || gsUrl());
+  const urlEl   = document.getElementById('cfg-gs-url');
+  const url     = (urlEl?.value.trim() || gsUrl());
   const statusEl = document.getElementById('gs-test-status');
   if (!url) { if (statusEl) statusEl.textContent = '⚠ Pegá la URL del Web App primero'; return; }
   if (statusEl) statusEl.innerHTML = '<span style="color:var(--mid)">Probando conexión...</span>';
   try {
-    const result = await jsonpRequest(url, { action: 'ping' }, 10000);
+    // Test with ping via GET
+    const res = await fetch(url + '?action=ping&t=' + Date.now());
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const result = await res.json();
     if (result && result.ok) {
-      if (statusEl) statusEl.innerHTML = '<span style="color:var(--green)">✓ ¡Conectado! Apps Script funcionando correctamente.</span>';
+      if (statusEl) statusEl.innerHTML = '<span style="color:var(--green)">✓ ¡Conectado! Apps Script funcionando.</span>';
       setSyncStatus('ok', 'Conectado', 'Google Sheets listo');
       state.config.gsUrl = url;
       saveState();
-      // Push current data
       await gsPush();
       toast('✓ Conectado — datos subidos');
     } else {
       throw new Error(result?.error || 'Respuesta inesperada');
     }
   } catch (e) {
-    if (statusEl) statusEl.innerHTML = `<span style="color:var(--red)">✗ ${e.message}<br><small>Asegurate de publicar como Web App con acceso "Cualquier usuario" y autorizarlo.</small></span>`;
-    setSyncStatus('err', 'Error de conexión', e.message);
+    if (statusEl) statusEl.innerHTML = `<span style="color:var(--red)">✗ ${e.message}<br><small>Verificá que el Apps Script esté publicado con acceso "Cualquier usuario".</small></span>`;
+    setSyncStatus('err', 'Error', e.message);
   }
 }
 
