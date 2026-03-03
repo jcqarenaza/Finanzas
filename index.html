@@ -41,7 +41,7 @@ body{
   font-family:'Nunito',sans-serif;
   background:var(--warm);color:var(--dark);
   min-height:100vh;min-height:100dvh;
-  padding-bottom:calc(var(--bottom-h) + 16px);
+  padding-bottom:calc(var(--bottom-h) + 24px);
   overflow-x:hidden;
 }
 body::before{
@@ -83,7 +83,7 @@ body::before{
 
 /* ─── BOTTOM NAV ─── */
 .bottom-nav{
-  position:fixed;bottom:0;left:0;right:0;z-index:90;
+  position:fixed;bottom:0;left:0;right:0;z-index:200;
   height:var(--bottom-h);
   background:rgba(254,250,244,.95);backdrop-filter:blur(20px);
   border-top:1px solid var(--border);
@@ -371,6 +371,25 @@ code{
 /* scrollbar */
 ::-webkit-scrollbar{width:4px;height:4px;}
 ::-webkit-scrollbar-thumb{background:rgba(200,175,200,.5);border-radius:4px;}
+
+/* ─── MOBILE RESPONSIVE ─── */
+@media (max-width: 480px) {
+  .container { padding: 12px 10px; }
+  .kpi-row { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .kpi-val { font-size: 1.6rem !important; }
+  .kpi-card { padding: 12px 12px !important; }
+  .section-card { margin-bottom: 10px; }
+  .sc-head { padding: 12px 14px 10px !important; }
+  .sc-body { padding: 6px 0 !important; }
+  .list-item { padding: 10px 12px !important; }
+  .item-name { font-size: 13px !important; }
+  .modal-card { margin: 8px; border-radius: 16px !important; max-height: 88vh; }
+  .form-group { margin-bottom: 10px !important; }
+  .btn-full { padding: 13px !important; font-size: 14px !important; }
+  .top-nav { padding: 0 12px; }
+  .brand { font-size: 1.1rem !important; }
+  #homeKpis .kpi-card.full { grid-column: span 2; }
+}
 </style>
 </head>
 <body>
@@ -1128,7 +1147,7 @@ function saveState() {
         _lastPushedHash = h;
         gsPush();
       }
-    }, 5000);
+    }, 5000); // 5s debounce — no satura el server
   }
 }
 function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2); }
@@ -2756,30 +2775,24 @@ function jsonpRequest(url, params = {}, timeoutMs = 15000) {
 async function gsPush() {
   const url = gsUrl();
   if (!url) return;
-  clearTimeout(window._gsPushTimer);
-  window._gsPushTimer = setTimeout(async () => {
-    setSyncStatus('syncing', 'Guardando...', 'Subiendo a Google Sheets');
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify({ action: 'push', data: state })
-      });
-      const result = await res.json();
-      if (result && result.ok) {
-        const now = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
-        setSyncStatus('ok', 'Sincronizado', 'Último guardado: ' + now);
-      } else {
-        throw new Error(result?.error || 'Sin respuesta');
-      }
-    } catch (e) {
-      setSyncStatus('err', 'Error al guardar', e.message);
-      console.warn('gsPush error:', e.message);
-    }
-  }, 300);
+  setSyncStatus('syncing', 'Guardando...', 'Subiendo a Google Sheets');
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'push', data: state })
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    let result; try { result = JSON.parse(text); } catch(e) { throw new Error('Respuesta inválida'); }
+    if (!result.ok) throw new Error(result.error || 'Sin confirmación');
+    const now = new Date().toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' });
+    setSyncStatus('ok', 'Sincronizado', 'Guardado: ' + now);
+  } catch(e) {
+    setSyncStatus('err', 'Error al guardar', e.message);
+    console.warn('gsPush:', e.message);
+  }
 }
-
-
 async function gsPull() {
   const url = gsUrl();
   if (!url) { toast('⚙ Configurá el Apps Script primero'); goPage('settings'); return; }
@@ -2787,7 +2800,8 @@ async function gsPull() {
   try {
     const res = await fetch(url + '?action=pull&t=' + Date.now());
     if (!res.ok) throw new Error('HTTP ' + res.status);
-    const result = await res.json();
+    const text = await res.text();
+    let result; try { result = JSON.parse(text); } catch(pe) { throw new Error('Respuesta inválida del servidor'); }
     if (!result || result.error) throw new Error(result?.error || 'Sin datos');
     if (result.empty || !result.meses) {
       await gsPush();
@@ -2798,16 +2812,19 @@ async function gsPull() {
     state = result;
     state.config = { ...(result.config || {}), ...localConfig };
     delete state._syncTs;
-    saveState();
+    _lastPushedHash = stateHash();
+    localStorage.setItem('misFinanzas_v3', JSON.stringify(state));
     loadState();
+    activeMesId = null;
     renderInicio();
-    const now = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+    const now = new Date().toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' });
     setSyncStatus('ok', 'Sincronizado', 'Actualizado: ' + now);
     toast('✓ Datos sincronizados');
     goPage('inicio');
-  } catch (e) {
+  } catch(e) {
     setSyncStatus('err', 'Error de conexión', e.message);
     toast('⚠ ' + e.message);
+    console.error('gsPull:', e);
   }
 }
 async function syncNow() { await gsPull(); }
@@ -2995,7 +3012,7 @@ renderInicio();
 </script>
 
 <!-- MES SELECTOR MODAL -->
-<div class="modal-overlay" id="modal-mes-selector" onclick="if(event.target===this)closeModal('modal-mes-selector')">
+<div class="modal-overlay" id="modal-mes-selector" style="z-index:500" onclick="if(event.target===this)closeModal('modal-mes-selector')">
   <div class="modal-card" style="max-height:75vh;display:flex;flex-direction:column">
     <div class="modal-header">
       <div class="modal-title">Seleccionar período</div>
